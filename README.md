@@ -195,6 +195,11 @@ uv run basedpyright
 uv run pytest --cov=minimal_captioning --cov-branch --cov-report=term-missing
 ```
 
+The same checks are configured in GitHub Actions. Open the repository's
+**Actions** tab, select **quality**, choose **Run workflow**, keep `main`
+selected, and choose the green **Run workflow** button. A green check confirms
+that the clean GitHub environment also passes.
+
 ## 10. Common fixes
 
 - **`uv` not recognized:** close/reopen VS Code, or restart Windows after installing `uv`.
