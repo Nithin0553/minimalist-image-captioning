@@ -1,0 +1,37 @@
+# Python and tooling
+.venv/
+.uv-cache/
+.npm-cache/
+.pip-cache/
+node_modules/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.basedpyright/
+.coverage
+coverage.xml
+htmlcov/
+build/
+dist/
+*.egg-info/
+
+# Local data and generated experiment artifacts
+data/*
+!data/.gitkeep
+checkpoints/*
+!checkpoints/.gitkeep
+artifacts/*
+!artifacts/.gitkeep
+outputs/*
+!outputs/.gitkeep
+screenshots/*
+!screenshots/.gitkeep
+
+# Local/editor files
+.env
+.DS_Store
+Thumbs.db
+.vscode/settings.json
+*_PLAN.md

@@ -1,0 +1,91 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "minimalist-image-captioning"
+dynamic = ["version"]
+description = "A six-dimensional bottleneck image captioning experiment for Flickr8k"
+readme = "README.md"
+requires-python = ">=3.11,<3.13"
+authors = [{ name = "Nithin Thirumani" }]
+keywords = ["image-captioning", "digital-image-processing", "pytorch", "flickr8k"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Education",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+  "Typing :: Typed",
+]
+dependencies = [
+  "kagglehub>=0.3.12,<1",
+  "matplotlib>=3.9,<4",
+  "nltk>=3.9,<4",
+  "numpy>=1.26,<3",
+  "pillow>=10.4,<13",
+  "pyyaml>=6.0,<7",
+  "scikit-learn>=1.5,<2",
+  "torch>=2.5,<3",
+  "torchvision>=0.20,<1",
+  "tqdm>=4.66,<5",
+]
+
+[project.optional-dependencies]
+dev = [
+  "basedpyright>=1.29,<2",
+  "hatchling>=1.27,<2",
+  "pre-commit>=4.2,<5",
+  "pytest>=8.3,<10",
+  "pytest-cov>=6,<8",
+  "ruff>=0.11,<1",
+  "ty>=0.0.1a16,<1",
+]
+
+[project.scripts]
+minimal-caption = "minimal_captioning.cli:main"
+
+[tool.hatch.version]
+path = "src/minimal_captioning/_version.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/minimal_captioning"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["B", "C4", "E", "F", "I", "N", "SIM", "UP", "W"]
+ignore = ["E501"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["minimal_captioning"]
+
+[tool.pytest.ini_options]
+addopts = "--strict-config --strict-markers --tb=short"
+testpaths = ["tests"]
+filterwarnings = ["error"]
+
+[tool.coverage.run]
+branch = true
+source = ["minimal_captioning"]
+
+[tool.coverage.report]
+fail_under = 70
+show_missing = true
+skip_covered = true
+exclude_also = [
+  "if TYPE_CHECKING:",
+  "if __name__ == .__main__.:",
+]
+
+[tool.basedpyright]
+include = ["src", "tests", "scripts"]
+exclude = ["data", "outputs", "checkpoints", "artifacts"]
+pythonVersion = "3.11"
+typeCheckingMode = "standard"
+reportMissingTypeStubs = false
+
+[tool.ty.environment]
+python-version = "3.11"

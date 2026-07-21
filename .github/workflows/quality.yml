@@ -1,0 +1,25 @@
+name: quality
+
+on:
+  push:
+    branches: [main, "agent/**"]
+  pull_request:
+
+concurrency:
+  group: quality-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv sync --frozen --extra dev
+      - run: uv run ruff format --check .
+      - run: uv run ruff check .
+      - run: uv run ty check
+      - run: uv run basedpyright
+      - run: uv run pytest --cov=minimal_captioning --cov-branch --cov-report=term-missing

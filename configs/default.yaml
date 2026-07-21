@@ -1,0 +1,48 @@
+seed: 42
+
+data:
+  root: data/flickr8k
+  images_dir: Images
+  captions_file: captions.txt
+  min_word_frequency: 3
+  max_caption_length: 30
+  train_ratio: 0.8
+  validation_ratio: 0.1
+  test_ratio: 0.1
+  num_workers: 2
+  max_train_images: null
+  max_validation_images: null
+  max_test_images: null
+
+model:
+  dip_mode: sobel
+  resize_size: 256
+  image_size: 224
+  sobel_blend: 0.35
+  gaussian_kernel_size: 5
+  gaussian_sigma: 1.2
+  embedding_dim: 128
+  latent_dim: 6
+  pretrained_resnet: true
+
+training:
+  epochs: 30
+  batch_size: 64
+  learning_rate: 0.001
+  weight_decay: 0.0001
+  gradient_clip: 5.0
+  early_stopping_patience: 5
+  device: auto
+
+evaluation:
+  batch_size: 64
+  max_generation_length: 30
+  tsne_max_images: 1000
+  gaussian_noise_std: [0.05, 0.10, 0.20]
+  salt_pepper_amount: [0.01, 0.03, 0.05]
+
+paths:
+  outputs: outputs
+  checkpoints: checkpoints
+  artifacts: artifacts
+  screenshots: screenshots
