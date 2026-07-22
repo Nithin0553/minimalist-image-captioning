@@ -444,19 +444,31 @@ def create_training_loaders(
     use_pinned_memory = config.training.device == "cuda" or (
         config.training.device == "auto" and torch.cuda.is_available()
     )
-    common = {
-        "batch_size": config.training.batch_size,
-        "num_workers": config.data.num_workers,
-        "collate_fn": collate,
-        "pin_memory": use_pinned_memory,
-    }
-    train_loader = DataLoader(
-        train_dataset,
-        shuffle=True,
-        generator=generator,
-        **common,
+    # PyTorch's DataLoader type parameter describes the dataset sample type and
+    # cannot express that collate_fn changes that type into TrainingBatch.
+    train_loader = cast(
+        DataLoader[TrainingBatch],
+        DataLoader(
+            train_dataset,
+            batch_size=config.training.batch_size,
+            shuffle=True,
+            num_workers=config.data.num_workers,
+            collate_fn=collate,
+            pin_memory=use_pinned_memory,
+            generator=generator,
+        ),
     )
-    validation_loader = DataLoader(validation_dataset, shuffle=False, **common)
+    validation_loader = cast(
+        DataLoader[TrainingBatch],
+        DataLoader(
+            validation_dataset,
+            batch_size=config.training.batch_size,
+            shuffle=False,
+            num_workers=config.data.num_workers,
+            collate_fn=collate,
+            pin_memory=use_pinned_memory,
+        ),
+    )
     return train_loader, validation_loader
 
 
@@ -477,13 +489,18 @@ def create_evaluation_loader(
     use_pinned_memory = config.training.device == "cuda" or (
         config.training.device == "auto" and torch.cuda.is_available()
     )
-    return DataLoader(
-        dataset,
-        batch_size=config.evaluation.batch_size,
-        shuffle=False,
-        num_workers=config.data.num_workers,
-        pin_memory=use_pinned_memory,
-        collate_fn=collate_evaluation_samples,
+    # See create_training_loaders: collate_fn changes EvaluationSample into
+    # EvaluationBatch, which the current PyTorch DataLoader type cannot model.
+    return cast(
+        DataLoader[EvaluationBatch],
+        DataLoader(
+            dataset,
+            batch_size=config.evaluation.batch_size,
+            shuffle=False,
+            num_workers=config.data.num_workers,
+            pin_memory=use_pinned_memory,
+            collate_fn=collate_evaluation_samples,
+        ),
     )
 
 

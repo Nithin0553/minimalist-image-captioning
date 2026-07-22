@@ -11,6 +11,8 @@ from minimal_captioning.data import (
     DatasetLayoutError,
     build_split_manifest,
     collate_training_samples,
+    create_evaluation_loader,
+    create_training_loaders,
     load_caption_records,
     prepare_data,
     resolve_dataset_layout,
@@ -77,6 +79,19 @@ def test_training_dataset_and_collate(project_config) -> None:
     assert batch.images.shape == (2, 3, 64, 64)
     assert batch.input_tokens.shape == batch.target_tokens.shape
     assert batch.to(torch.device("cpu")).image_names == batch.image_names
+
+
+def test_training_and_evaluation_loaders_return_collated_batches(project_config) -> None:
+    prepared = prepare_data(project_config)
+    train_loader, validation_loader = create_training_loaders(project_config, prepared)
+    train_batch = next(iter(train_loader))
+    validation_batch = next(iter(validation_loader))
+    evaluation_batch = next(iter(create_evaluation_loader(project_config, prepared)))
+
+    assert train_batch.images.shape[1:] == (3, 64, 64)
+    assert validation_batch.input_tokens.shape == validation_batch.target_tokens.shape
+    assert evaluation_batch.images.shape[1:] == (3, 64, 64)
+    assert len(evaluation_batch.image_names) == len(evaluation_batch.references)
 
 
 def test_split_builder_rejects_too_few_images(project_config) -> None:

@@ -5,6 +5,7 @@ from typing import Protocol, cast
 
 import nltk
 from nltk.corpus import wordnet as nltk_wordnet
+from nltk.corpus.reader import WordNetCorpusReader
 from nltk.translate.bleu_score import SmoothingFunction, corpus_bleu
 from nltk.translate.meteor_score import meteor_score
 
@@ -70,27 +71,33 @@ def compute_caption_metrics(
     ]
     tokenized_predictions = [tokenize_caption(prediction) for prediction in predictions]
     smoothing = SmoothingFunction().method1
-    bleu_1 = float(
+    # NLTK returns a scalar for one weight tuple, but its annotation also
+    # includes the list result used when callers provide multiple tuples.
+    bleu_1 = cast(
+        float,
         corpus_bleu(
             tokenized_references,
             tokenized_predictions,
             weights=(1.0, 0.0, 0.0, 0.0),
             smoothing_function=smoothing,
-        )
+        ),
     )
-    bleu_4 = float(
+    bleu_4 = cast(
+        float,
         corpus_bleu(
             tokenized_references,
             tokenized_predictions,
             weights=(0.25, 0.25, 0.25, 0.25),
             smoothing_function=smoothing,
-        )
+        ),
     )
     if wordnet_provider is None:
         ensure_meteor_resources()
-        provider = cast(SynsetProvider, nltk_wordnet)
+        provider = nltk_wordnet
     else:
-        provider = wordnet_provider
+        # NLTK annotates this parameter with its concrete corpus-reader class,
+        # although METEOR only calls the structural ``synsets`` interface.
+        provider = cast(WordNetCorpusReader, wordnet_provider)
     meteor_values = [
         meteor_score(image_references, prediction, wordnet=provider)
         for image_references, prediction in zip(

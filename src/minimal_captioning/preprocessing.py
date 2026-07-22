@@ -72,7 +72,7 @@ class DIPPreprocessor:
         tensor = vision_functional.pil_to_tensor(rgb).to(dtype=torch.float32).div_(255.0)
         tensor = vision_functional.resize(
             tensor,
-            self.config.resize_size,
+            [self.config.resize_size],
             interpolation=InterpolationMode.BILINEAR,
             antialias=True,
         )

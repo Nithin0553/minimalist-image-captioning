@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import cast
 
 import torch
 from torch import Tensor, nn
@@ -29,7 +30,9 @@ class FrozenResNet18(nn.Module):
         super().__init__()
         weights = ResNet18_Weights.DEFAULT if pretrained else None
         backbone = resnet18(weights=weights)
-        backbone.fc = nn.Identity()
+        # TorchVision types ``fc`` as Linear even though replacing the
+        # classifier with any Module is its supported feature-extraction API.
+        backbone.fc = cast(nn.Linear, nn.Identity())
         backbone.requires_grad_(False)
         backbone.eval()
         self.backbone = backbone

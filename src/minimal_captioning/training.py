@@ -5,9 +5,10 @@ import io
 import os
 import random
 import tempfile
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import cast
+from typing import Any, cast
 
 import matplotlib
 import numpy as np
@@ -219,7 +220,7 @@ def load_trained_model(
     state = payload.get("model_state")
     if not isinstance(state, dict):
         raise ValueError("checkpoint does not contain a model state")
-    model.load_state_dict(state)
+    model.load_state_dict(cast(Mapping[str, Any], state))
     model.to(selected_device)
     model.eval()
     return LoadedModel(
@@ -282,8 +283,8 @@ def train_model(config: ProjectConfig, *, resume: Path | None = None) -> Trainin
         optimizer_state = resume_payload.get("optimizer_state")
         if not isinstance(model_state, dict) or not isinstance(optimizer_state, dict):
             raise ValueError("resume checkpoint lacks model or optimizer state")
-        model.load_state_dict(model_state)
-        optimizer.load_state_dict(optimizer_state)
+        model.load_state_dict(cast(Mapping[str, Any], model_state))
+        optimizer.load_state_dict(cast(dict[str, Any], optimizer_state))
         start_epoch = _payload_int(resume_payload, "epoch", 0) + 1
         best_validation_loss = _payload_float(resume_payload, "best_validation_loss", float("inf"))
 

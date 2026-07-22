@@ -4,7 +4,7 @@ import re
 from collections import Counter
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Final
+from typing import Final, cast
 
 TOKEN_PATTERN: Final[re.Pattern[str]] = re.compile(r"[a-z0-9]+(?:'[a-z0-9]+)?")
 PAD_TOKEN: Final = "<pad>"
@@ -45,7 +45,7 @@ class Vocabulary:
         tokens = raw.get("index_to_token")
         if not isinstance(tokens, list) or not all(isinstance(token, str) for token in tokens):
             raise ValueError("invalid serialized vocabulary")
-        normalized = tuple(tokens)
+        normalized = tuple(cast(list[str], tokens))
         if normalized[: len(SPECIAL_TOKENS)] != SPECIAL_TOKENS:
             raise ValueError("serialized vocabulary has invalid special-token order")
         return cls(
