@@ -1,7 +1,7 @@
-.PHONY: sync format format-check check tests prod
+.PHONY: sync format format-check check tests build prod
 
 sync:
-	uv sync --extra dev
+	uv sync --frozen --extra dev
 
 format:
 	uv run ruff format .
@@ -18,4 +18,7 @@ check:
 tests:
 	uv run pytest --cov=minimal_captioning --cov-branch --cov-report=term-missing
 
-prod: format-check check tests
+build:
+	uv build
+
+prod: format-check check tests build

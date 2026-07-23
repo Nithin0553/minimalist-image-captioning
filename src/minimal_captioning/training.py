@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import io
+import math
 import os
 import random
 import tempfile
@@ -145,11 +146,13 @@ def _checkpoint_payload(
     epoch: int,
     best_validation_loss: float,
     history: list[EpochResult],
+    patience_used: int,
 ) -> dict[str, object]:
     return {
         "format_version": 1,
         "epoch": epoch,
         "best_validation_loss": best_validation_loss,
+        "patience_used": patience_used,
         "model_config": config.model.to_dict(),
         "model_state": model.state_dict(),
         "optimizer_state": optimizer.state_dict(),
@@ -208,6 +211,49 @@ def _payload_float(payload: dict[str, object], key: str, default: float) -> floa
     if isinstance(value, bool) or not isinstance(value, int | float):
         raise ValueError(f"checkpoint field '{key}' must be numeric")
     return float(value)
+
+
+def _history_from_payload(payload: dict[str, object]) -> list[EpochResult]:
+    raw_history = payload.get("history")
+    if not isinstance(raw_history, list):
+        raise ValueError("resume checkpoint does not contain a valid training history")
+    history: list[EpochResult] = []
+    previous_epoch = 0
+    for raw_item in raw_history:
+        if not isinstance(raw_item, dict):
+            raise ValueError("resume checkpoint contains an invalid training-history row")
+        item = cast(dict[str, object], raw_item)
+        epoch = _payload_int(item, "epoch", 0)
+        if epoch <= previous_epoch:
+            raise ValueError("resume checkpoint training epochs must be strictly increasing")
+        train_loss = _payload_float(item, "train_loss", float("nan"))
+        validation_loss = _payload_float(item, "validation_loss", float("nan"))
+        if not math.isfinite(train_loss) or not math.isfinite(validation_loss):
+            raise ValueError("resume checkpoint training losses must be finite")
+        history.append(
+            EpochResult(
+                epoch=epoch,
+                train_loss=train_loss,
+                validation_loss=validation_loss,
+            )
+        )
+        previous_epoch = epoch
+    checkpoint_epoch = _payload_int(payload, "epoch", 0)
+    if not history or history[-1].epoch != checkpoint_epoch:
+        raise ValueError("resume checkpoint history does not end at its saved epoch")
+    return history
+
+
+def _patience_from_history(history: list[EpochResult]) -> int:
+    best_validation_loss = float("inf")
+    patience_used = 0
+    for item in history:
+        if item.validation_loss < best_validation_loss:
+            best_validation_loss = item.validation_loss
+            patience_used = 0
+        else:
+            patience_used += 1
+    return patience_used
 
 
 def load_trained_model(
@@ -278,6 +324,7 @@ def train_model(config: ProjectConfig, *, resume: Path | None = None) -> Trainin
     start_epoch = 1
     best_validation_loss = float("inf")
     history: list[EpochResult] = []
+    patience_used = 0
     if resume_payload is not None:
         model_state = resume_payload.get("model_state")
         optimizer_state = resume_payload.get("optimizer_state")
@@ -287,13 +334,38 @@ def train_model(config: ProjectConfig, *, resume: Path | None = None) -> Trainin
         optimizer.load_state_dict(cast(dict[str, Any], optimizer_state))
         start_epoch = _payload_int(resume_payload, "epoch", 0) + 1
         best_validation_loss = _payload_float(resume_payload, "best_validation_loss", float("inf"))
+        if not math.isfinite(best_validation_loss):
+            raise ValueError("resume checkpoint best validation loss must be finite")
+        history = _history_from_payload(resume_payload)
+        patience_used = _payload_int(
+            resume_payload,
+            "patience_used",
+            _patience_from_history(history),
+        )
+        if patience_used < 0:
+            raise ValueError("resume checkpoint patience_used cannot be negative")
 
     train_loader, validation_loader = create_training_loaders(config, prepared)
     criterion = nn.CrossEntropyLoss(ignore_index=prepared.vocabulary.pad_index, reduction="sum")
     best_checkpoint = config.paths.checkpoints / "best.pt"
     last_checkpoint = config.paths.checkpoints / "last.pt"
-    patience_used = 0
     stopped_early = False
+
+    if start_epoch > config.training.epochs or (
+        patience_used >= config.training.early_stopping_patience
+    ):
+        if not best_checkpoint.is_file():
+            raise FileNotFoundError(
+                f"best checkpoint is required to finish the resumed experiment: {best_checkpoint}"
+            )
+        _write_history(config, history)
+        return TrainingResult(
+            best_checkpoint=best_checkpoint,
+            last_checkpoint=last_checkpoint,
+            history=tuple(history),
+            best_validation_loss=best_validation_loss,
+            stopped_early=patience_used >= config.training.early_stopping_patience,
+        )
 
     for epoch in range(start_epoch, config.training.epochs + 1):
         train_loss = _run_epoch(
@@ -330,6 +402,7 @@ def train_model(config: ProjectConfig, *, resume: Path | None = None) -> Trainin
             epoch=epoch,
             best_validation_loss=best_validation_loss,
             history=history,
+            patience_used=patience_used,
         )
         save_checkpoint_atomic(last_checkpoint, payload)
         if improved:

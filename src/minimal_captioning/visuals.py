@@ -19,6 +19,40 @@ matplotlib.use("Agg")
 from matplotlib import pyplot as plt  # noqa: E402
 
 
+def create_dataset_structure_visual(config: ProjectConfig, summary_path: Path) -> Path:
+    if not summary_path.is_file():
+        raise FileNotFoundError(f"dataset summary not found: {summary_path}")
+    config.paths.create()
+    summary = summary_path.read_text(encoding="utf-8").strip()
+    line_count = max(1, len(summary.splitlines()))
+    figure_height = max(6.0, line_count * 0.42)
+    figure, axis = plt.subplots(figsize=(12, figure_height))
+    axis.axis("off")
+    axis.set_title("Flickr8k Data Structure and Split Summary", fontsize=16, weight="bold", pad=18)
+    axis.text(
+        0.03,
+        0.97,
+        summary,
+        ha="left",
+        va="top",
+        family="monospace",
+        fontsize=11,
+        linespacing=1.45,
+        transform=axis.transAxes,
+        bbox={
+            "boxstyle": "round,pad=0.8",
+            "facecolor": "#F7F9FC",
+            "edgecolor": "#244A73",
+            "linewidth": 1.2,
+        },
+    )
+    figure.tight_layout()
+    destination = config.paths.outputs / "dataset_structure.png"
+    figure.savefig(destination, dpi=180, bbox_inches="tight")
+    plt.close(figure)
+    return destination
+
+
 def create_architecture_artifacts(config: ProjectConfig) -> tuple[Path, Path]:
     config.paths.create()
     model = MinimalCaptioningModel(
@@ -79,7 +113,7 @@ def create_architecture_artifacts(config: ProjectConfig) -> tuple[Path, Path]:
                 xytext=(x + 1.78, 1.55),
                 arrowprops={"arrowstyle": "->", "lw": 1.6, "color": "#244A73"},
             )
-    axis.set_title("Professor-Specified Flat Image Captioning Pipeline", fontsize=15, weight="bold")
+    axis.set_title("Course Project Flat Image Captioning Pipeline", fontsize=15, weight="bold")
     figure.tight_layout()
     image_path = config.paths.outputs / "architecture_diagram.png"
     figure.savefig(image_path, dpi=200, bbox_inches="tight")
@@ -144,12 +178,14 @@ def caption_image(
 def create_evidence_montage(config: ProjectConfig) -> Path:
     config.paths.create()
     panels = (
+        (config.paths.outputs / "dataset_structure.png", "Flickr8k data structure"),
         (config.paths.outputs / "architecture_diagram.png", "Required architecture"),
+        (config.paths.outputs / "training_curve.png", "Training and validation loss"),
         (config.paths.outputs / "caption_result.png", "Example caption"),
         (config.paths.outputs / "tsne_latent_space.png", "6-D latent t-SNE"),
         (config.paths.outputs / "sensitivity_analysis.png", "Noise sensitivity"),
     )
-    figure, axes = plt.subplots(2, 2, figsize=(16, 11))
+    figure, axes = plt.subplots(3, 2, figsize=(16, 17))
     for axis, (path, title) in zip(axes.flat, panels, strict=True):
         axis.axis("off")
         axis.set_title(title, fontsize=12, weight="bold")

@@ -17,7 +17,7 @@ This repository tests whether a deliberately severe six-dimensional image bottle
 | BLEU-1, BLEU-4, METEOR | Standard NLTK corpus metrics, saved as JSON |
 | t-SNE of 6-D latent space | Test-set t-SNE colored by scene labels inferred from the human references |
 | Gaussian and salt-and-pepper sensitivity | Caption metrics, mean latent L2 shift, and latent cosine similarity at every configured noise level |
-| Screenshots of structure and outputs | Architecture, caption, t-SNE, sensitivity, and evidence-montage image generators |
+| Screenshots of structure and outputs | Dataset structure, architecture, training, caption, t-SNE, sensitivity, and evidence-montage image generators |
 | ReadMe.txt | Included at repository root |
 
 The code rejects a configuration whose latent dimension is not six or whose experiment encoder is not pre-trained. `assert_required_architecture()` also fails if the frozen encoder, direct projection, GRU hidden size, or GRU layer count changes.
@@ -37,6 +37,7 @@ minimalist-image-captioning/
 |-- outputs/                 # Metrics, predictions, plots; ignored by Git
 |-- screenshots/             # Submission evidence montage; ignored by Git
 |-- ReadMe.txt               # Professor-requested run instructions
+|-- REFERENCES.md            # Dataset, methods, libraries, and source attribution
 `-- pyproject.toml           # Dependencies and quality-tool configuration
 ```
 
@@ -67,7 +68,7 @@ code .
 In VS Code, open **Terminal -> New Terminal**, then install the exact environment:
 
 ```powershell
-uv sync --extra dev
+uv sync --frozen --extra dev
 ```
 
 Select the interpreter if VS Code asks: press `Ctrl+Shift+P`, choose **Python: Select Interpreter**, then choose `.venv\Scripts\python.exe`.
@@ -117,6 +118,15 @@ uv run minimal-caption architecture --config configs/default.yaml
 
 These commands create deterministic 80/10/10 image-level splits (seed 42), build the vocabulary from training captions only, verify all captioned image files, and render the required model diagram. Splitting by image prevents captions for the same image from leaking across train and test sets.
 
+They also create `outputs/dataset_structure.txt`, `outputs/dataset_structure.png`,
+`outputs/architecture_summary.txt`, and `outputs/architecture_diagram.png`.
+
+Verify the exact professor-required source filenames and architecture contract:
+
+```powershell
+uv run minimal-caption submission-check --config configs/default.yaml
+```
+
 ## 6. Run a short end-to-end check first
 
 The quick configuration uses 256 train images, 64 validation images, 64 test images, two epochs, and one level of each noise type. These results are only a pipeline check, not the final course results.
@@ -144,28 +154,37 @@ The single command below validates the full dataset, trains up to 30 epochs with
 uv run minimal-caption run-all --config configs/default.yaml
 ```
 
-Keep the terminal open. On CPU this can take several hours; runtime depends on the computer. The best and latest checkpoints are saved after every epoch, so interruption does not erase completed epochs.
+The command finishes by checking every required generated filename and opening every PNG artifact.
 
-Resume an interrupted run:
+Keep the terminal open. On CPU this can take many hours; runtime depends on the computer. The
+best and latest checkpoints, complete loss history, and early-stopping state are saved after every
+epoch, so interruption does not erase completed work.
+
+Resume an interrupted `run-all` experiment and automatically continue through evaluation and
+evidence generation:
 
 ```powershell
-uv run minimal-caption train --config configs/default.yaml --resume checkpoints/last.pt
+uv run minimal-caption run-all --config configs/default.yaml --resume checkpoints/last.pt
 ```
 
 You can also run the final stages separately:
 
 ```powershell
 uv run minimal-caption train --config configs/default.yaml
-uv run minimal-caption evaluate --config configs/default.yaml --checkpoint checkpoints/best.pt
 uv run minimal-caption analyze --config configs/default.yaml --checkpoint checkpoints/best.pt
+uv run minimal-caption caption --config configs/default.yaml --checkpoint checkpoints/best.pt --image data/flickr8k/Images/IMAGE_NAME.jpg
 uv run minimal-caption evidence --config configs/default.yaml
 ```
+
+`evaluate` is available when only clean metrics and t-SNE are needed. Use `analyze` for the final
+project because it also runs every Gaussian and salt-and-pepper condition.
 
 ## 8. Final output files
 
 | File | Purpose |
 |---|---|
 | `outputs/dataset_structure.txt` | Dataset counts, paths, split sizes, and image fingerprint |
+| `outputs/dataset_structure.png` | Screenshot-ready Flickr8k structure and split summary |
 | `outputs/architecture_summary.txt` | Exact dimensions and frozen/trainable contract |
 | `outputs/architecture_diagram.png` | Pipeline screenshot |
 | `outputs/training_history.csv` | Per-epoch train and validation loss |
@@ -175,13 +194,22 @@ uv run minimal-caption evidence --config configs/default.yaml
 | `outputs/latent_vectors.csv` | Six latent coordinates, scene label, and t-SNE coordinates |
 | `outputs/tsne_latent_space.png` | Semantic clustering visualization |
 | `outputs/sensitivity_results.csv` | Metrics and latent robustness for clean/noisy inputs |
+| `outputs/sensitivity_results.json` | Machine-readable copy of every sensitivity result |
 | `outputs/sensitivity_analysis.png` | Gaussian and salt-and-pepper comparison plot |
 | `outputs/caption_result.png` | Original image, DIP image, and generated caption |
-| `screenshots/project_evidence.png` | Combined screenshot-ready submission evidence |
+| `outputs/caption_result.json` | Generated caption, six latent values, and checkpoint epoch |
+| `screenshots/project_evidence.png` | Dataset, architecture, training, caption, t-SNE, and sensitivity montage |
 | `checkpoints/best.pt` | Best validation-loss model |
 | `checkpoints/last.pt` | Most recent resumable model |
 
 Dataset files and generated checkpoints are intentionally excluded from Git because they are large. Submit the source and selected output screenshots through Canvas as directed by the professor.
+
+After the full run, verify that every expected artifact exists, is non-empty, uses the exact
+filename, and that every PNG can be opened:
+
+```powershell
+uv run minimal-caption submission-check --config configs/default.yaml --require-generated
+```
 
 ## 9. Automated code checks
 
@@ -192,7 +220,9 @@ uv run ruff format --check .
 uv run ruff check .
 uv run ty check
 uv run basedpyright
+uv run minimal-caption submission-check --config configs/default.yaml
 uv run pytest --cov=minimal_captioning --cov-branch --cov-report=term-missing
+uv build
 ```
 
 The same checks are configured in GitHub Actions. Open the repository's
@@ -221,10 +251,13 @@ that the clean GitHub environment also passes.
 
 Presentation slides and the 8-10 page report are intentionally deferred and are not included in this source-code milestone.
 
-## Technical references
+## Originality and references
 
-- [TorchVision ResNet-18 and official weights](https://docs.pytorch.org/vision/stable/models/generated/torchvision.models.resnet18.html)
-- [PyTorch GRU](https://docs.pytorch.org/docs/stable/generated/torch.nn.GRU.html)
-- [scikit-learn t-SNE](https://scikit-learn.org/stable/modules/generated/sklearn.manifold.TSNE.html)
-- [NLTK translation metrics](https://www.nltk.org/api/nltk.translate.html)
-- [Flickr8k dataset page](https://www.kaggle.com/datasets/adityajn105/flickr8k)
+The repository does not contain copied tutorial code or vendored third-party source. It uses
+maintained libraries through their public APIs, and the dataset, architecture, metrics, and
+visualization methods are credited in [REFERENCES.md](REFERENCES.md). Generated data, pretrained
+weights, checkpoints, and results are excluded from source control.
+
+Automated authorship detectors cannot establish who wrote source code reliably. Academic
+integrity should instead be supported by understandable code, reproducible commands, accurate
+citations, retained Git history, and compliance with the course's policy on tool disclosure.

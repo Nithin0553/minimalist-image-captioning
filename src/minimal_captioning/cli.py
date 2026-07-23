@@ -9,10 +9,12 @@ from .data import prepare_data, write_dataset_summary
 from .download import download_flickr8k
 from .evaluation import evaluate_checkpoint
 from .metrics import ensure_meteor_resources
+from .submission import audit_submission
 from .training import train_model
 from .visuals import (
     caption_image,
     create_architecture_artifacts,
+    create_dataset_structure_visual,
     create_evidence_montage,
 )
 
@@ -95,10 +97,26 @@ def build_parser() -> argparse.ArgumentParser:
     )
     _add_config_argument(evidence_parser)
 
+    submission_parser = subparsers.add_parser(
+        "submission-check",
+        help="Verify exact source filenames and, optionally, every generated final artifact",
+    )
+    _add_config_argument(submission_parser)
+    submission_parser.add_argument(
+        "--require-generated",
+        action="store_true",
+        help="Also require all checkpoints, metrics, plots, and screenshot artifacts",
+    )
+
     run_all_parser = subparsers.add_parser(
         "run-all", help="Validate, train, evaluate, analyze, and create evidence"
     )
     _add_config_argument(run_all_parser)
+    run_all_parser.add_argument(
+        "--resume",
+        type=Path,
+        help="Resume training and then complete every remaining final stage",
+    )
     return parser
 
 
@@ -133,8 +151,10 @@ def main(argv: list[str] | None = None) -> None:
     if args.command == "validate-data":
         prepared = prepare_data(config)
         summary = write_dataset_summary(config, prepared)
+        visual = create_dataset_structure_visual(config, summary)
         print(summary.read_text(encoding="utf-8"))
         print(f"Saved dataset summary: {summary}")
+        print(f"Saved dataset structure image: {visual}")
         return
     if args.command == "architecture":
         summary, diagram = create_architecture_artifacts(config)
@@ -169,17 +189,35 @@ def main(argv: list[str] | None = None) -> None:
         destination = create_evidence_montage(config)
         print(f"Saved evidence montage: {destination}")
         return
+    if args.command == "submission-check":
+        audit = audit_submission(config, require_generated=args.require_generated)
+        if not audit.passed:
+            print("Submission check: FAILED")
+            for issue in audit.issues:
+                print(f"- {issue}")
+            raise SystemExit(1)
+        scope = "source and generated artifacts" if audit.generated_files_checked else "source"
+        print(f"Submission check: PASS ({scope}; {audit.checked_files} files checked)")
+        print("Presentation slides and the 8-10 page report remain deferred.")
+        return
     if args.command == "run-all":
         ensure_meteor_resources()
         prepared = prepare_data(config)
-        write_dataset_summary(config, prepared)
+        summary = write_dataset_summary(config, prepared)
+        create_dataset_structure_visual(config, summary)
         create_architecture_artifacts(config)
-        training = train_model(config)
+        resume = _resolve_from_project(config, args.resume) if args.resume else None
+        training = train_model(config, resume=resume)
         _print_metrics(config, training.best_checkpoint, sensitivity=True)
         prepared = prepare_data(config)
         sample_image = prepared.layout.images_dir / prepared.splits.test[0]
         caption_image(config, training.best_checkpoint, sample_image)
         destination = create_evidence_montage(config)
+        audit = audit_submission(config, require_generated=True)
+        if not audit.passed:
+            details = "\n".join(f"- {issue}" for issue in audit.issues)
+            raise RuntimeError(f"final submission artifact check failed:\n{details}")
+        print(f"Final artifact check: PASS ({audit.checked_files} files checked)")
         print(f"Complete. Submission evidence: {destination}")
         return
     parser.error(f"unsupported command: {args.command}")
