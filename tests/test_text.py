@@ -27,6 +27,16 @@ def test_encode_truncates_and_decode_stops_at_eos() -> None:
     assert vocabulary.decode([vocabulary.bos_index, 4, 5, vocabulary.eos_index, 6]) == "four one"
 
 
+def test_generated_decode_collapses_only_adjacent_repetitions() -> None:
+    vocabulary = Vocabulary.build(["one two"], min_frequency=1)
+    one = vocabulary.token_to_index["one"]
+    two = vocabulary.token_to_index["two"]
+    indices = [one, one, two, two, one, vocabulary.eos_index, two]
+
+    assert vocabulary.decode(indices) == "one one two two one"
+    assert vocabulary.decode_generated(indices) == "one two one"
+
+
 def test_unknown_words_use_unknown_index() -> None:
     vocabulary = Vocabulary.build(["known"], min_frequency=1)
     assert vocabulary.unk_index in vocabulary.encode("missing", max_length=3)

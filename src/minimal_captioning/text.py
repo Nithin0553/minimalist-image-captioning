@@ -85,7 +85,7 @@ class Vocabulary:
             self.eos_index,
         ]
 
-    def decode(self, indices: list[int]) -> str:
+    def _decode_words(self, indices: list[int]) -> list[str]:
         words: list[str] = []
         for index in indices:
             if index == self.eos_index:
@@ -97,4 +97,19 @@ class Vocabulary:
             else:
                 token = UNK_TOKEN
             words.append(token)
-        return " ".join(words)
+        return words
+
+    def decode(self, indices: list[int]) -> str:
+        """Decode token indices faithfully, preserving repeated content tokens."""
+
+        return " ".join(self._decode_words(indices))
+
+    def decode_generated(self, indices: list[int]) -> str:
+        """Decode model output while collapsing adjacent recurrent-token loops."""
+
+        words = self._decode_words(indices)
+        collapsed: list[str] = []
+        for word in words:
+            if not collapsed or word != collapsed[-1]:
+                collapsed.append(word)
+        return " ".join(collapsed)

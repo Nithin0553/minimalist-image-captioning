@@ -179,6 +179,11 @@ uv run minimal-caption evidence --config configs/default.yaml
 `evaluate` is available when only clean metrics and t-SNE are needed. Use `analyze` for the final
 project because it also runs every Gaussian and salt-and-pepper condition.
 
+Evaluation and caption figures use a deterministic inference rule that collapses only adjacent
+duplicate words produced by recurrent decoding loops. It does not alter training, the saved
+checkpoint, the six-dimensional architecture, or non-adjacent repeated words. The faithful raw
+token decoder remains available separately in the source for inspection.
+
 ## 8. Final output files
 
 | File | Purpose |

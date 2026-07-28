@@ -145,7 +145,7 @@ def caption_image(
             eos_index=loaded.vocabulary.eos_index,
             max_length=config.evaluation.max_generation_length,
         )
-    caption = loaded.vocabulary.decode(tokens[0].detach().cpu().tolist())
+    caption = loaded.vocabulary.decode_generated(tokens[0].detach().cpu().tolist())
     latent_values = [float(value) for value in latent[0].detach().cpu().tolist()]
     result_path = destination or config.paths.outputs / "caption_result.png"
     result_path.parent.mkdir(parents=True, exist_ok=True)

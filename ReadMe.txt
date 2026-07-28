@@ -66,6 +66,8 @@ latent as h0 -> caption tokens.
 METRICS AND ANALYSES
 BLEU-1, BLEU-4, METEOR, t-SNE of the 6-D latent space, Gaussian noise,
 and salt-and-pepper noise are all implemented.
+Generated captions collapse adjacent duplicate words from recurrent decoding
+loops; training, checkpoints, and the required architecture remain unchanged.
 
 See README.md for every command, expected data structure, output description,
 troubleshooting, tests, source attribution, and the professor's submission checklist.

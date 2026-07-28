@@ -86,7 +86,7 @@ def collect_predictions(
                 results.append(
                     ImagePrediction(
                         image_name=image_name,
-                        prediction=loaded.vocabulary.decode(tokens),
+                        prediction=loaded.vocabulary.decode_generated(tokens),
                         references=references,
                         latent=(
                             float(latent[0]),
