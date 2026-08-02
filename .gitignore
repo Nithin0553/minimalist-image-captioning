@@ -35,3 +35,7 @@ screenshots/*
 Thumbs.db
 .vscode/settings.json
 *_PLAN.md
+
+full-run.log
+pre-decoding-fix-results.zip
+project-output-audit*.zip
